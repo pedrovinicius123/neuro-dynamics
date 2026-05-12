@@ -45,10 +45,61 @@ Network read_neural_bins(const char* filename){
     
     Network net;
     fread(&net.n_layers, sizeof(int), 1, fptr);
-    net.layers = malloc(net.n_layers*sizeof(Layer*));
 
+    for (int i = 0; i < net.n_layers; i++){
+        printf("%d\n", i);
+        net.layers[i] = (Layer*)malloc(sizeof(Layer));
 
+        int label_len;
+        char label[200];
+
+        fread(&label_len, sizeof(int), 1, fptr);
+        fread(&label, sizeof(char), label_len, fptr);
+
+        printf("AFTER\n");
+
+        net.layers[i]->label = label;
+        printf("N_neurons before %d\n", net.layers[i]->n_neurons);
+        int result = fread(&net.layers[i]->n_neurons, sizeof(int), 1, fptr);
+        if (result == 0){
+            perror("Error reading");
+        }
+        printf("N_neurons %d\n", net.layers[i]->n_neurons);
+        net.layers[i]->neurons = (Neuron*)malloc(net.layers[i]->n_neurons*sizeof(Neuron));
+
+        printf("OPA\n");
+        fread(&net.layers[i]->idx, sizeof(int), 1, fptr);
+        fread(net.layers[i]->neurons, sizeof(Neuron), net.layers[i]->n_neurons, fptr);
+
+        int k;
+        int n_input_neurons;
+        int count = 0;
+
+        printf("Before crash\n");
+        
+        for (int l = 0; l < MAX_LAYERS; l++){
+            
+        }
+        fread(&k, sizeof(int), 1, fptr);
+        fread(&n_input_neurons, sizeof(int), 1, fptr);
+        printf("Opa %d %d\n", k, n_input_neurons);
+        net.layers[i]->conns[k] = (float**) malloc(n_input_neurons*sizeof(float*));
+        
+        printf("After crash 1\n");
+        for (int m = 0; m < n_input_neurons; m++){
+            
+            net.layers[i]->conns[k][m] = (float*) malloc(net.layers[i]->n_neurons * sizeof(float));
+            for(int n = 0; n < net.layers[i]->n_neurons; n++){
+                fread(&net.layers[i]->conns[k][m][n], sizeof(float), 1, fptr);
+            }
+            printf("OPAAA %d\n", m);
+        }
+        
+    } 
+    printf("AIOSNFA\n");
+    return net;
 }
+
 
 void write_neural_bins(const char* filename, Network* net){
     FILE* fptr = fopen(filename, "wb");
@@ -118,40 +169,37 @@ int main(int argc, char** argv){
     }
 
     Network* l = malloc(sizeof(Network));
-    if (create_filename){
-        l = read_neural_architecture(create_filename);
-        if (!l){
-            return 1;
-        }
-    }
-    if (debug){
-        printf("DEBUG: Layer model read\n");
-        for (int layer = 0; layer < l->n_layers; layer++){
-            for (int i = 0; i < MAX_LAYERS; i++){
-                if (l->layers[layer]->conns[i] != NULL){
-                    printf("LAYER %d to LAYER %d - OK\n", layer, i);
-                }
-            }            
-        }
-    }
-
-    if (save_filename){
-        write_neural_bins(save_filename, l);
-    }
-    for (int layer = 0; layer < l->n_layers; layer++){
-        for (int conn = 0; conn < MAX_LAYERS; conn++){
-            if (l->layers[layer]->conns[conn]){
-                for (int neur = 0; neur < l->layers[layer]->n_neurons; neur++){
-                    free(l->layers[layer]->conns[conn][neur]);
-                }
-                free(l->layers[layer]->conns[conn]);
+    if (create_filename == NULL ^ read_filename == NULL){
+        if (create_filename){
+            l = read_neural_architecture(create_filename);
+            if (!l){
+                return 1;
+            }
+        } else {
+            Network net = read_neural_bins(read_filename);
+            l = &net;
+            if (!l){
+                return 1;
             }
         }
-        free(l->layers[layer]->neurons);
-        free(l->layers[layer]->label);
-        free(l->layers[layer]);
-    }
+        if (debug){
+            printf("DEBUG: Layer model read\n");
+            for (int layer = 0; layer < l->n_layers; layer++){
+                for (int i = 0; i < MAX_LAYERS; i++){
+                    if (l->layers[layer]->conns[i] != NULL){
+                        printf("LAYER %d to LAYER %d - OK\n", layer, i);
+                    }
+                }            
+            }
+        }
 
-    free(l);
+        if (save_filename){
+            write_neural_bins(save_filename, l);
+        }
+    } else {
+        printf("Error, --rfile xor --sfile => 0\n");
+        return 1;
+    }
     return 0;
 }
+

@@ -48,14 +48,13 @@
     } Layer;
 
     typedef struct {
-        Layer** layers;
+        Layer* layers[MAX_LAYERS];
         int n_layers;
     } Network;
 
     #if defined(SNN_LIF_GENERATION)
         Network* generate_network(int nlayers, int* nneurons, char** labels, float conn_prob){
             Network* net = malloc(sizeof(Network));
-            net->layers = malloc(nlayers*sizeof(Layer*));
             net->n_layers = nlayers;
             
             for (int i = 0; i < nlayers; i++){
