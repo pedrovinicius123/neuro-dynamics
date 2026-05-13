@@ -24,7 +24,7 @@ Network* read_neural_architecture(const char* filename){
             sscanf(line, "# %f", &conn_prob);
         } else {
             sscanf(line, "(%[^)]) - %d", label,  &nneuron);
-            labels[nlayers-1] = label;
+            labels[nlayers-1] = strdup(label);
             n_neurons[nlayers-1] = nneuron;
             
             labels = (char**)realloc(labels, (nlayers+1)*sizeof(char*));
@@ -41,109 +41,126 @@ Network read_neural_bins(const char* filename){
     FILE* fptr = fopen(filename, "rb");
     if (!fptr){
         perror("File could not be read");
+        exit(1);
     }
     
     Network net;
+    memset(&net, 0, sizeof(Network));  // Inicializa tudo com zero
+    
     fread(&net.n_layers, sizeof(int), 1, fptr);
-
+    printf("n_layers: %d\n", net.n_layers);
+    
     for (int i = 0; i < net.n_layers; i++){
-        printf("%d\n", i);
-        net.layers[i] = (Layer*)malloc(sizeof(Layer));
-
         int label_len;
-        char label[200];
+        
+        net.layers[i] = (Layer*)calloc(1, sizeof(Layer));  // calloc inicializa tudo com NULL/0
+        //printf("Layer %d\n", i);
 
         fread(&label_len, sizeof(int), 1, fptr);
-        fread(&label, sizeof(char), label_len, fptr);
 
-        printf("AFTER\n");
+        char* label = (char*)malloc(label_len + 1);  // +1 para null terminator
+        fread(label, sizeof(char), label_len, fptr);
+        label[label_len] = '\0';  // Adiciona terminador
+        //printf("Label: %s\n", label);
+        
+        net.layers[i]->label = label;  // Já foi alocado, não precisa de strdup
+        
+        fread(&net.layers[i]->n_neurons, sizeof(int), 1, fptr);
+        //printf("n_neurons: %d\n", net.layers[i]->n_neurons);
 
-        net.layers[i]->label = label;
-        printf("N_neurons before %d\n", net.layers[i]->n_neurons);
-        int result = fread(&net.layers[i]->n_neurons, sizeof(int), 1, fptr);
-        if (result == 0){
-            perror("Error reading");
-        }
-        printf("N_neurons %d\n", net.layers[i]->n_neurons);
-        net.layers[i]->neurons = (Neuron*)malloc(net.layers[i]->n_neurons*sizeof(Neuron));
-
-        printf("OPA\n");
         fread(&net.layers[i]->idx, sizeof(int), 1, fptr);
+        //printf("idx: %d\n", net.layers[i]->idx);
+    
+        // ALOCA e lê os neurônios
+        net.layers[i]->neurons = (Neuron*)malloc(net.layers[i]->n_neurons * sizeof(Neuron));
         fread(net.layers[i]->neurons, sizeof(Neuron), net.layers[i]->n_neurons, fptr);
-
-        int k;
-        int n_input_neurons;
-        int count = 0;
-
-        printf("Before crash\n");
         
-        for (int l = 0; l < MAX_LAYERS; l++){
-            
+        for (int n = 0; n < net.layers[i]->n_neurons; n++){
+            net.layers[i]->neurons[n].idx = n;
         }
-        fread(&k, sizeof(int), 1, fptr);
-        fread(&n_input_neurons, sizeof(int), 1, fptr);
-        printf("Opa %d %d\n", k, n_input_neurons);
-        net.layers[i]->conns[k] = (float**) malloc(n_input_neurons*sizeof(float*));
-        
-        printf("After crash 1\n");
-        for (int m = 0; m < n_input_neurons; m++){
+
+        int nconns;
+        fread(&nconns, sizeof(int), 1, fptr);
+        ////printf("nconns: %d\n", nconns);
+
+        // Inicializa conns com NULL
+        memset(net.layers[i]->conns, 0, sizeof(float**) * MAX_LAYERS);
+
+        for (int nc = 0; nc < nconns; nc++){
+            int nneurs;
+            int k;
+            fread(&k, sizeof(int), 1, fptr);
+            fread(&nneurs, sizeof(int), 1, fptr);
             
-            net.layers[i]->conns[k][m] = (float*) malloc(net.layers[i]->n_neurons * sizeof(float));
-            for(int n = 0; n < net.layers[i]->n_neurons; n++){
-                fread(&net.layers[i]->conns[k][m][n], sizeof(float), 1, fptr);
+            //printf("Connection %d: k=%d, nneurs=%d\n", nc, k, nneurs);
+            
+            // Aloca array de ponteiros para linhas
+            net.layers[i]->conns[k] = (float**)malloc(nneurs * sizeof(float*));
+            
+            // Aloca todos os dados contiguamente
+            float* data = (float*)malloc(nneurs * net.layers[i]->n_neurons * sizeof(float));
+            
+            // Lê tudo de uma vez
+            fread(data, sizeof(float), nneurs * net.layers[i]->n_neurons, fptr);
+            
+            // Configura os ponteiros para cada linha
+            for (int row = 0; row < nneurs; row++) {
+                net.layers[i]->conns[k][row] = &data[row * net.layers[i]->n_neurons];
             }
-            printf("OPAAA %d\n", m);
         }
-        
-    } 
-    printf("AIOSNFA\n");
+    }
+
+    fclose(fptr);
     return net;
 }
-
 
 void write_neural_bins(const char* filename, Network* net){
     FILE* fptr = fopen(filename, "wb");
     if (!fptr){
         perror("File could not be written");
-    }
-
-    fwrite(&net->n_layers, sizeof(int), 1, fptr);
-    for (int i = 0; i < net->n_layers; i++){
-        int label_len = strlen(net->layers[i]->label);
-        fwrite(&label_len, sizeof(int), 1, fptr);
-        for (int c = 0; c < label_len; c++){
-            fwrite(&net->layers[i]->label[c], sizeof(char), 1, fptr);
-        }
-        fwrite(&net->layers[i]->n_neurons, sizeof(int), 1, fptr);
-        fwrite(&net->layers[i]->idx, sizeof(int), 1, fptr);
-        for (int j = 0; j < net->layers[i]->n_neurons; j++){
-            fwrite(&net->layers[i]->neurons[j], sizeof(Neuron), 1, fptr);
-        }
-
-        int nconns = 0; 
-        for (int k = 0; k < MAX_LAYERS; k++){
-            if (net->layers[i]->conns[k] && nconns < net->layers[i]->n_conns){
-                nconns++;
-                fwrite(&k, sizeof(int), 1, fptr);
-                fwrite(&net->layers[k]->n_neurons, sizeof(int), 1, fptr);
-
-                for(int l = 0; l < net->layers[k]->n_neurons; l++){
-                    for (int m = 0; m < net->layers[i]->n_neurons; m++){
-                        fwrite(&net->layers[i]->conns[k][l][m], sizeof(float), 1, fptr);
-                
-                    }  
-                }        
-            }
-        }
-    }
-    int result = fflush(fptr);
-    if (result != 0){
-        perror("Error flushing file: ");
-        fclose(fptr);
         return;
     }
-    fclose(fptr);
+
+    printf("NET LAYERS %d\n", net->n_layers);
     
+    fwrite(&net->n_layers, sizeof(int), 1, fptr);
+    
+    for (int i = 0; i < net->n_layers; i++){
+        int label_len = strlen(net->layers[i]->label);
+        //printf("%d Label %s\n", label_len, net->layers[i]->label);
+
+        fwrite(&label_len, sizeof(int), 1, fptr);
+        fwrite(net->layers[i]->label, sizeof(char), label_len, fptr);
+        fwrite(&net->layers[i]->n_neurons, sizeof(int), 1, fptr);
+        fwrite(&net->layers[i]->idx, sizeof(int), 1, fptr);
+        fwrite(net->layers[i]->neurons, sizeof(Neuron), net->layers[i]->n_neurons, fptr);
+
+        // Conta conexões existentes primeiro
+        int nconns = 0;
+        for (int k = 0; k < MAX_LAYERS; k++){
+            if (net->layers[i]->conns[k]) nconns++;
+        }
+        net->layers[i]->n_conns = nconns;
+        
+        fwrite(&nconns, sizeof(int), 1, fptr);
+        //printf("nconns: %d\n", nconns);
+
+        for (int k = 0; k < MAX_LAYERS; k++){
+            if (net->layers[i]->conns[k]){
+                fwrite(&k, sizeof(int), 1, fptr);
+                // CORRIGIDO: número de linhas da matriz (neurônios da camada k)
+                fwrite(&net->layers[k]->n_neurons, sizeof(int), 1, fptr);
+                
+                // Escreve a matriz: linhas = net->layers[k]->n_neurons, colunas = net->layers[i]->n_neurons
+                for(int l = 0; l < net->layers[k]->n_neurons; l++){
+                    fwrite(net->layers[i]->conns[k][l], sizeof(float), net->layers[i]->n_neurons, fptr);
+                }
+            }
+        }
+        fflush(fptr);
+    }
+    
+    fclose(fptr);
 }
 
 int main(int argc, char** argv){

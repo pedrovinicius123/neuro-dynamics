@@ -52,6 +52,26 @@
         int n_layers;
     } Network;
 
+    float** transpose(float** mtrx, int rows, int cols){
+        //printf("AAA\n");
+
+        float** transposed = (float**)malloc(rows*sizeof(float*));
+        for (int k = 0; k < rows; k++){
+            transposed[k] = (float*) malloc(cols*sizeof(float));
+        }
+        // Transpõe
+        for (int i = 0; i < rows; i++){
+            for (int j = 0; j < cols; j++){
+                //printf("BEFORE CURSE %d %d (%d %d)\n", i, j, rows, cols);
+                //printf("%f\n", mtrx[10][0]);
+                transposed[i][j] = mtrx[j][i];
+            }
+        }
+
+        //printf("OKAY\n");
+        return transposed;
+    }
+
     #if defined(SNN_LIF_GENERATION)
         Network* generate_network(int nlayers, int* nneurons, char** labels, float conn_prob){
             Network* net = malloc(sizeof(Network));
@@ -70,6 +90,10 @@
                     net->layers[i]->neurons[j] = n;
 
                 }
+                for (int j = 0; j < nlayers; j++){
+                    net->layers[i]->conns[j] = NULL;
+            
+                }
             }
             srand(time(NULL));
 
@@ -77,6 +101,22 @@
                 for(int j = 0; j < nlayers; j++){
                     printf("%d %d\n", i, j);
                     if (i != j && ((float)rand()/RAND_MAX) < conn_prob){
+                        if (net->layers[i]->conns[j] != NULL){
+                            int rows = net->layers[i]->n_neurons;
+                            int cols = net->layers[j]->n_neurons;
+                            
+                            //printf("TRANSPOSED\n");
+
+                            net->layers[j]->n_conns++;
+                            net->layers[j]->conns[i] = transpose(net->layers[i]->conns[j], rows, cols);
+
+
+                            if (!net->layers[j]->conns[i]) {
+                                perror("Error while generating SNN (transpose failed)");
+                                return NULL;
+                            }
+                            continue;
+                        }
                         net->layers[j]->n_conns++;
                         net->layers[j]->conns[i] = malloc(net->layers[i]->n_neurons*sizeof(float*));
                         if (!net->layers[j]->conns[i]){
@@ -96,6 +136,7 @@
                     } else net->layers[j]->conns[i] = NULL;
                 }
             }
+            printf("OPAPPAPAPA\n");
 
             for (int i = 0; i < nlayers; i++){
                 for (int j = net->layers[i]->n_conns; j < MAX_LAYERS; j++){
