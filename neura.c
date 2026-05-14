@@ -184,26 +184,29 @@ int main(int argc, char** argv){
         }
     }
 
-    if (debug){
+    if (debug && create_filename){
         printf("DEBUG: Reading file %s\n", create_filename);
+    } else if(debug){
+        printf("DEBUG: Reading file %s\n", read_filename);
     }
 
-    Network* l = malloc(sizeof(Network));
-    if (create_filename == NULL ^ read_filename == NULL){
+    Network* l = NULL;
+    if ((create_filename == NULL) ^ (read_filename == NULL)){
         if (create_filename){
             l = read_neural_architecture(create_filename);
             if (!l){
                 return 1;
             }
         } else {
-            Network net = read_neural_bins(read_filename);
-            l = &net;
+            l = (Network*)malloc(sizeof(Network));
+            (*l) = read_neural_bins(read_filename);
             if (!l){
                 return 1;
             }
         }
-        if (debug){
+        if (debug && l != NULL){
             printf("DEBUG: Layer model read\n");
+
             for (int layer = 0; layer < l->n_layers; layer++){
                 for (int i = 0; i < MAX_LAYERS; i++){
                     if (l->layers[layer]->conns[i] != NULL){
@@ -214,16 +217,18 @@ int main(int argc, char** argv){
         }
 
         ma_device device;
+
         init_logger("logs/log.1.neur");
         init_layer_threads(l);
         init_audio(&device);
+
 
         printf("Recording audio on machine...\n");
         sleep(10);
         
         end_audio(&device);
-        end_layer_threads(l);         
-        
+        end_layer_threads();         
+        printf("%d\n", l->n_layers);
         if (save_filename){
             write_neural_bins(save_filename, l);
         }

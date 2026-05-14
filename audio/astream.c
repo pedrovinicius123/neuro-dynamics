@@ -11,11 +11,12 @@
 #include <math.h>
 
 typedef struct {
-    float input_buffer[2][AUDIO_BUFFER_MAX_SIZE];
+    float input_buffer[3][AUDIO_BUFFER_MAX_SIZE];
     int running;
     int input_buffer_current_size;
     int read_pos;   // ADICIONADO: posição de leitura
     int write_pos;  // ADICIONADO: posição de escrita
+    int label_true;
     pthread_t thread;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
@@ -93,7 +94,7 @@ void* audio_stream_thread(void* args){
                 fabsf(asth->input_buffer[1][asth->read_pos])*50.0f,
             };
             ls.spike_timestamps = (float[2]){dt, dt};
-            printf("%f %f\n", ls.outputs[0], ls.outputs[1]);
+            //printf("%f %f\n", ls.outputs[0], ls.outputs[1]);
             
             ls.n_outputs = 2;
             ls.from = MAX_LAYERS;
@@ -103,7 +104,6 @@ void* audio_stream_thread(void* args){
             asth->input_buffer_current_size--;
             
             dt += DT;
-
             pthread_mutex_unlock(&asth->mutex);
             // Libera o mutex ANTES de chamar signal (evita deadlock)
             signal(ls);
