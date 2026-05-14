@@ -14,7 +14,7 @@
 
     #define RM 20.0f
     #define REF_PERIOD 2.0f
-    #define DT 0.1f
+    #define DT 10.0f
 
     #include <stdio.h>
     #include <stdlib.h>
@@ -82,7 +82,6 @@
 
             for (int i = 0; i < nlayers; i++){
                 for(int j = 0; j < nlayers; j++){
-                    printf("%d %d\n", i, j);
                     if (i != j && ((float)rand()/RAND_MAX) < conn_prob){
                         if (net->layers[i]->conns[j] != NULL){
                             int rows = net->layers[i]->n_neurons;
@@ -113,13 +112,12 @@
                                 return NULL;
                             }
                             for(int sinap = 0; sinap < net->layers[j]->n_neurons; sinap++){
-                                net->layers[j]->conns[i][k][sinap] = ((float)rand()/RAND_MAX);
+                                net->layers[j]->conns[i][k][sinap] = 10.0f*((float)rand()/RAND_MAX);
                             }
                         }
                     } else net->layers[j]->conns[i] = NULL;
                 }
             }
-            printf("OPAPPAPAPA\n");
 
             for (int i = 0; i < nlayers; i++){
                 for (int j = net->layers[i]->n_conns; j < MAX_LAYERS; j++){
@@ -148,9 +146,9 @@
 
                 for (int j = 0; j < nneurons_out; j++){
                     if(n->current_u >= U_TH){
-                        output.outputs[i] += lif_only ? n->current_u : n->current_u * w[input.from][i][j];
-                        output.spike_timestamps[i] = n->current_timestamp;
                         printf("SPIKE!!\n");
+                        output.outputs[i] += lif_only > 0 ? n->current_u : n->current_u * w[input.from][i][j];
+                        output.spike_timestamps[i] = n->current_timestamp;
 
                         Data d = {
                             n->idx,
@@ -163,7 +161,7 @@
                         n->last_spike_timestamp = n->current_timestamp;
                         
                         logger_log(EVENT_TYPE_SPIKE, d);
-                    }
+                    } 
                 }
             }
             return output;

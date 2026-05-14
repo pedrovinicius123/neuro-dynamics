@@ -23,6 +23,6 @@ typedef struct {
 
 void signal(LayerSignal s);
 void init_layer_threads(void* args);
-void end_layer_threads(Network* net);
+void end_layer_threads();
 
 #endif

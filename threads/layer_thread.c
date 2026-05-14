@@ -86,10 +86,10 @@ void* layer_thread(void* args){
     }
     
     printf("Thread started for layer %s\n", lt->layer->label ? lt->layer->label : "unknown");
-
-    while (lt->running){
-        pthread_mutex_lock(&lt->mutex);
-        
+    
+    
+    while (lt->running){ 
+        pthread_mutex_lock(&lt->mutex);      
         // Espera por trabalho (evita busy waiting)
         while (lt->current_buffer_size == 0 && lt->running) {
             pthread_cond_wait(&lt->cond, &lt->mutex);
@@ -109,10 +109,6 @@ void* layer_thread(void* args){
             if (input->from == MAX_LAYERS){
                 lif_only = 1;
             }
-
-            input->n_outputs = lt->layer->n_neurons;
-            input->outputs = (float*)malloc(input->n_outputs * sizeof(float));
-            input->spike_timestamps = (float*)malloc(input->n_outputs * sizeof(float));
             
             if (!input->outputs || !input->spike_timestamps) {
                 fprintf(stderr, "Failed to allocate outputs\n");
@@ -133,10 +129,9 @@ void* layer_thread(void* args){
             lt->input_buffer[k] = NULL;
             lt->current_buffer_size--;
         }
-        
-        usleep(10000);
         pthread_mutex_unlock(&lt->mutex);
     }
+    
     
     printf("Thread ending for layer %s\n", lt->layer->label ? lt->layer->label : "unknown");
     return NULL;
@@ -162,12 +157,9 @@ void init_layer_threads(void* args){
         return;
     }
     
-    printf("Opa de novo %d\n", net->n_layers);
-    
     for (int i = 0; i < net->n_layers; i++){
         printf("Begin layer %d!\n", i);
-        
-        // Aloca LayerThread
+
         LayerThread* lt = (LayerThread*)malloc(sizeof(LayerThread));
         if (!lt) {
             fprintf(stderr, "Failed to allocate LayerThread %d\n", i);
@@ -236,11 +228,17 @@ void init_layer_threads(void* args){
     printf("Threads created successfully\n");
 }
 
-void end_layer_threads(Network* net){
-    for (int i = 0; i < net->n_layers; i++){
+void end_layer_threads(){
+    for (int i = 0; i < net_ts->n_layers; i++){
+        if (net_ts->lts[i] == NULL) continue;
+
         net_ts->lts[i]->running = 0;
-        pthread_mutex_destroy(&net_ts->lts[i]->mutex);
+        pthread_cond_signal(&net_ts->lts[i]->cond);
         pthread_join(net_ts->lts[i]->thread, NULL);
+
+        pthread_mutex_destroy(&net_ts->lts[i]->mutex);
+        pthread_cond_destroy(&net_ts->lts[i]->cond);
+       
     }
 
 }
