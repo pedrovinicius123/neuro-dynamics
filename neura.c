@@ -170,6 +170,7 @@ int main(int argc, char** argv){
     char* create_filename = NULL;
     char* save_filename = NULL;
     char* read_filename = NULL;
+    int label_true = 0;
     int debug = 0;
 
     for (int i = 0; i < argc; i++){
@@ -181,6 +182,8 @@ int main(int argc, char** argv){
             save_filename = argv[i+1];
         } else if(strcmp(argv[i], "--rfile") == 0 && i != argc-1){
             read_filename = argv[i+1];
+        } else if(strcmp(argv[i], "--train") == 0 && i != argc-1){
+            label_true = 1;
         }
     }
 
@@ -214,13 +217,14 @@ int main(int argc, char** argv){
                     }
                 }            
             }
+            sleep(2);
         }
 
         ma_device device;
 
         init_logger("logs/log.1.neur");
         init_layer_threads(l);
-        init_audio(&device);
+        init_audio(&device, label_true);
 
 
         printf("Recording audio on machine...\n");

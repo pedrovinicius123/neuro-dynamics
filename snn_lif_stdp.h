@@ -14,7 +14,7 @@
 
     #define RM 20.0f
     #define REF_PERIOD 2.0f
-    #define DT 10.0f
+    #define DT 0.1f
 
     #include <stdio.h>
     #include <stdlib.h>
@@ -147,7 +147,7 @@
                 for (int j = 0; j < nneurons_out; j++){
                     if(n->current_u >= U_TH){
                         printf("SPIKE!!\n");
-                        output.outputs[i] += lif_only > 0 ? n->current_u : n->current_u * w[input.from][i][j];
+                        output.outputs[i] += lif_only > 0 ? 70.0f : 70.0f * w[input.from][i][j];
                         output.spike_timestamps[i] = n->current_timestamp;
 
                         Data d = {

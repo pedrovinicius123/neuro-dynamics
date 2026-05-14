@@ -6,13 +6,13 @@
 #include <unistd.h>
 #include "./layer_thread.h"
 
-NetworkThreads* net_ts;
+NetworkThreads* net_ts = NULL;
 void signal(LayerSignal s){
     // Protege acesso ao buffer com mutex
     for (int i = 0; i < net_ts->n_layers; i++){
         LayerThread* lt = net_ts->lts[i];
         if (!lt || !lt->running) continue;
-        
+        printf("%d\n", s.from);
         int should_process = 0;
         
         if (s.from == MAX_LAYERS){
@@ -22,7 +22,9 @@ void signal(LayerSignal s){
             }
         } else {
             // Verifica se esta camada tem conexão com a camada de origem
+            printf("%d\n", lt->layer->conns[s.from] == NULL);
             if (s.from < MAX_LAYERS && lt->layer->conns[s.from] != NULL){
+                printf("AALKSMNALKN\n");
                 should_process = 1;
             }
         }
@@ -66,6 +68,7 @@ void signal(LayerSignal s){
             }
             
             // Adiciona ao buffer
+            printf("USELESS BROADCAST!! %d %d \n", s.from,  lt->layer->idx);
             lt->input_buffer[lt->current_buffer_size] = s_copy;
             lt->current_buffer_size++;  // CORRIGIDO: incrementa o valor
             
@@ -121,6 +124,8 @@ void* layer_thread(void* args){
             if (!lif_only){
                 STDP(*input, lt->layer);
             }
+
+            printf("OUTPUT FROM %d\n", output.from);
             signal(output);
             
             free(input->outputs);
@@ -137,9 +142,7 @@ void* layer_thread(void* args){
     return NULL;
 }
 
-void init_layer_threads(void* args){
-    Network* net = (Network*) args;
-    
+void init_layer_threads(Network* net){
     // Aloca net_ts
     net_ts = (NetworkThreads*)malloc(sizeof(NetworkThreads));
     if (!net_ts) {
@@ -148,6 +151,7 @@ void init_layer_threads(void* args){
     }
     
     // Inicializa net_ts
+    net_ts->
     net_ts->n_layers = net->n_layers;
     net_ts->lts = (LayerThread**)malloc(net->n_layers * sizeof(LayerThread*));
     if (!net_ts->lts) {

@@ -1,7 +1,6 @@
 #define MINIAUDIO_IMPLEMENTATION
 #define MA_DEBUG_OUTPUT
 #define AUDIO_BUFFER_MAX_SIZE 100
-#include "miniaudio.h"
 #include "astream.h"
 #include "../snn_lif_stdp.h"
 #include "../threads/layer_thread.h"
@@ -89,14 +88,19 @@ void* audio_stream_thread(void* args){
             LayerSignal ls;
             
             // Lê da posição atual
-            ls.outputs = (float[2]){
-                fabsf(asth->input_buffer[0][asth->read_pos])*50.0f,
-                fabsf(asth->input_buffer[1][asth->read_pos])*50.0f,
-            };
-            ls.spike_timestamps = (float[2]){dt, dt};
-            //printf("%f %f\n", ls.outputs[0], ls.outputs[1]);
+            ls.outputs = (float*)malloc(3*sizeof(float));
             
-            ls.n_outputs = 2;
+            ls.outputs[0] = fabsf(asth->input_buffer[0][asth->read_pos]*100.0f),
+            ls.outputs[1] = fabsf(asth->input_buffer[1][asth->read_pos]*100.0f),
+            ls.outputs[2] = (float)(asth->label_true*100.0f);
+            
+            ls.spike_timestamps = (float*)malloc(3*sizeof(float));
+            for (int k = 0; k < 3; k++){
+                ls.spike_timestamps[k] = dt;
+            }
+            printf("%f %f\n", ls.outputs[0], ls.outputs[1]);
+            
+            ls.n_outputs = 3;
             ls.from = MAX_LAYERS;
             
             // Avança read_pos
@@ -116,7 +120,7 @@ void* audio_stream_thread(void* args){
 }
 
 // Criação CORRIGIDA
-AudioStreamThread* create_audio_stream(){
+AudioStreamThread* create_audio_stream(int label_true){
     AudioStreamThread* asth = (AudioStreamThread*)calloc(1, sizeof(AudioStreamThread));
     if (!asth) {
         perror("Failed to allocate AudioStreamThread");
@@ -129,6 +133,7 @@ AudioStreamThread* create_audio_stream(){
     asth->read_pos = 0;
     asth->write_pos = 0;
     asth->input_buffer_current_size = 0;
+    asth->label_true = label_true;
 
     if (pthread_create(&asth->thread, NULL, audio_stream_thread, (void*)asth) != 0) {
         perror("Failed to create audio stream thread");
@@ -158,9 +163,9 @@ void stop_audio_stream(AudioStreamThread* asth){
 }
 
 // Inicialização CORRIGIDA
-void init_audio(ma_device* device){
+void init_audio(ma_device* device, int label_true){
     // Cria o stream ANTES de iniciar o dispositivo
-    asth = create_audio_stream();
+    asth = create_audio_stream(label_true);
     if (!asth) {
         fprintf(stderr, "Failed to create audio stream\n");
         return;
