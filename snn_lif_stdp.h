@@ -22,6 +22,7 @@
     #include <string.h>
     #include <time.h>
     #include "logging/logger.h"
+    #include "mtrx_utils.h"
 
     typedef struct {
         float* outputs;
@@ -52,25 +53,7 @@
         int n_layers;
     } Network;
 
-    float** transpose(float** mtrx, int rows, int cols){
-        //printf("AAA\n");
-
-        float** transposed = (float**)malloc(rows*sizeof(float*));
-        for (int k = 0; k < rows; k++){
-            transposed[k] = (float*) malloc(cols*sizeof(float));
-        }
-        // Transpõe
-        for (int i = 0; i < rows; i++){
-            for (int j = 0; j < cols; j++){
-                //printf("BEFORE CURSE %d %d (%d %d)\n", i, j, rows, cols);
-                //printf("%f\n", mtrx[10][0]);
-                transposed[i][j] = mtrx[j][i];
-            }
-        }
-
-        //printf("OKAY\n");
-        return transposed;
-    }
+    
 
     #if defined(SNN_LIF_GENERATION)
         Network* generate_network(int nlayers, int* nneurons, char** labels, float conn_prob){
@@ -150,27 +133,28 @@
     #endif
 
     #if defined(SNN_LIF_PROC)
-        LayerSignal LIF_Signal(LayerSignal input, Layer* layer_input, Layer* layer_output, float** w){
+        LayerSignal LIF_Signal(LayerSignal input, int lif_only, Layer* layer, int nneurons_out, float** w[]){
             LayerSignal output;
-            output.n_outputs = layer_output->n_neurons;
-            output.outputs = calloc(layer_output->n_neurons, sizeof(float));
-            output.spike_timestamps = calloc(layer_output->n_neurons, sizeof(float));
-            output.from = layer_input->idx;
+            output.n_outputs = nneurons_out;
+            output.outputs = calloc(nneurons_out, sizeof(float));
+            output.spike_timestamps = calloc(nneurons_out, sizeof(float));
+            output.from = layer->idx;
 
             for (int i = 0; i < input.n_outputs; i++){
-                Neuron* n = &layer_input->neurons[i];
+                Neuron* n = &layer->neurons[i];
                 float du = (-(n->current_u - U_REST) + RM*input.outputs[i]) * (DT/TAU_M);
                 n->current_u += du;
                 n->current_timestamp += DT;
 
-                for (int j = 0; j < layer_output->n_neurons; j++){
+                for (int j = 0; j < nneurons_out; j++){
                     if(n->current_u >= U_TH){
-                        output.outputs[i] += n->current_u * w[i][j];
+                        output.outputs[i] += lif_only ? n->current_u : n->current_u * w[input.from][i][j];
                         output.spike_timestamps[i] = n->current_timestamp;
+                        printf("SPIKE!!\n");
 
                         Data d = {
                             n->idx,
-                            layer_input->idx,
+                            layer->idx,
                             n->current_u,
                             n->last_spike_timestamp
                         };
@@ -193,10 +177,17 @@
                     float dw = 0.0f;
                     if (dt > 0){
                         dw = A_PLUS * exp(-dt/TAU_PLUS);
-                    } else {
+                    } else if (dt < 0) {
                         dw = -A_MINUS * exp(dt/TAU_MINUS);
                     }
                     layer->conns[from][i][j] += dw;
+
+                    float* w = &layer->conns[from][i][j];
+                    (*w) = *w > 3.0f ? 3.0f :*w;
+                    (*w) = *w < -3.0f ?- 3.0f : *w;
+
+                    Data data = {layer->idx, 0, 0.0f, layer->neurons[0].current_timestamp};
+                    logger_log(EVENT_TYPE_WEIGTH_UPDATE, data);
 
                 }
 

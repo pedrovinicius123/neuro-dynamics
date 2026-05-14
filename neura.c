@@ -1,5 +1,8 @@
 #define SNN_LIF_GENERATION
 #include "snn_lif_stdp.h"
+#include "threads/layer_thread.h"
+#include "audio/astream.h"
+#include "audio/miniaudio.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -210,6 +213,17 @@ int main(int argc, char** argv){
             }
         }
 
+        ma_device device;
+        init_logger("logs/log.1.neur");
+        init_layer_threads(l);
+        init_audio(&device);
+
+        printf("Recording audio on machine...\n");
+        sleep(10);
+        
+        end_audio(&device);
+        end_layer_threads(l);         
+        
         if (save_filename){
             write_neural_bins(save_filename, l);
         }

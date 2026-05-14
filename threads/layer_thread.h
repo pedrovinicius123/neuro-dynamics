@@ -8,6 +8,7 @@ typedef struct {
     Layer* layer;
     pthread_mutex_t mutex;
     pthread_t thread;
+    pthread_cond_t cond;
 
     LayerSignal* input_buffer[MAX_BUFFER_SIZE];
     int current_buffer_size;
@@ -19,5 +20,9 @@ typedef struct {
     LayerThread** lts;
     int n_layers;
 } NetworkThreads;
+
+void signal(LayerSignal s);
+void init_layer_threads(void* args);
+void end_layer_threads(Network* net);
 
 #endif

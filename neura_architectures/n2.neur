@@ -1,8 +1,8 @@
-# 0.5
-(INPUT) - 10
-(LAYER_1) - 100
+# 0.9
+(LAYER_OUTPUT) - 20
+(LAYER_1) - 10
 (LAYER_2) - 50
 (LAYER_3) - 100
 (LAYER_4) - 50
 (LAYER_5) - 100
-(LAYER_OUTPUT) - 20
+(INPUT) - 2

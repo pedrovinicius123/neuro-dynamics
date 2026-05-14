@@ -22,5 +22,6 @@ typedef struct {
 
 void init_logger(const char* filename);
 void logger_log(Event event_type, Data data);
+void logger_end();
 
 #endif
