@@ -10,18 +10,6 @@
 #include <math.h>
 
 typedef struct {
-    float input_buffer[3][AUDIO_BUFFER_MAX_SIZE];
-    int running;
-    int input_buffer_current_size;
-    int read_pos;   // ADICIONADO: posição de leitura
-    int write_pos;  // ADICIONADO: posição de escrita
-    int label_true;
-    pthread_t thread;
-    pthread_mutex_t mutex;
-    pthread_cond_t cond;
-} AudioStreamThread;
-
-typedef struct {
     float left;
     float right;
 } audio_frame_t;
@@ -68,59 +56,59 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
 
 // Thread consumidora CORRIGIDA
 void* audio_stream_thread(void* args){
-    AudioStreamThread* asth = (AudioStreamThread*)args;
+    StreamEntry* ent = (StreamEntry*)args;
     float dt = 0.0f;  // MOVED para fora do loop
     while(1){        
-        pthread_mutex_lock(&asth->mutex);
+        pthread_mutex_lock(&ent->asth->mutex);
         // Espera enquanto não há dados
-        while(asth->read_pos == asth->write_pos && asth->running){
-            pthread_cond_wait(&asth->cond, &asth->mutex);
+        while(ent->asth->read_pos == ent->asth->write_pos && ent->asth->running){
+            pthread_cond_wait(&ent->asth->cond, &ent->asth->mutex);
         }
         
         // Verifica se deve parar
-        if (!asth->running && asth->read_pos == asth->write_pos){
-            pthread_mutex_unlock(&asth->mutex);
+        if (!ent->asth->running && ent->asth->read_pos == ent->asth->write_pos){
+            pthread_mutex_unlock(&ent->asth->mutex);
             break;
         }
         
         // Processa TODOS os dados disponíveis
-        while(asth->read_pos != asth->write_pos){
-            LayerSignal ls;
+        while(ent->asth->read_pos != ent->asth->write_pos){
+            LayerSignal* ls = malloc(sizeof(LayerSignal));
             
             // Lê da posição atual
-            ls.outputs = (float*)malloc(3*sizeof(float));
+            ls->outputs = (float*)malloc(3*sizeof(float));
             
-            ls.outputs[0] = fabsf(asth->input_buffer[0][asth->read_pos]*100.0f),
-            ls.outputs[1] = fabsf(asth->input_buffer[1][asth->read_pos]*100.0f),
-            ls.outputs[2] = (float)(asth->label_true*100.0f);
+            ls->outputs[0] = fabsf(ent->asth->input_buffer[0][ent->asth->read_pos]*100.0f),
+            ls->outputs[1] = fabsf(ent->asth->input_buffer[1][ent->asth->read_pos]*100.0f),
+            ls->outputs[2] = (float)(ent->asth->label_true*100.0f);
             
-            ls.spike_timestamps = (float*)malloc(3*sizeof(float));
+            ls->spike_timestamps = (float*)malloc(3*sizeof(float));
             for (int k = 0; k < 3; k++){
-                ls.spike_timestamps[k] = dt;
+                ls->spike_timestamps[k] = dt;
             }
-            printf("%f %f\n", ls.outputs[0], ls.outputs[1]);
+            printf("%f %f\n", ls->outputs[0], ls->outputs[1]);
             
-            ls.n_outputs = 3;
-            ls.from = MAX_LAYERS;
+            ls->n_outputs = 3;
+            ls->from = MAX_LAYERS;
             
             // Avança read_pos
-            asth->read_pos = (asth->read_pos + 1) % AUDIO_BUFFER_MAX_SIZE;
-            asth->input_buffer_current_size--;
+            ent->asth->read_pos = (ent->asth->read_pos + 1) % AUDIO_BUFFER_MAX_SIZE;
+            ent->asth->input_buffer_current_size--;
             
             dt += DT;
-            pthread_mutex_unlock(&asth->mutex);
+            pthread_mutex_unlock(&ent->asth->mutex);
             // Libera o mutex ANTES de chamar signal (evita deadlock)
-            signal(ls);
-            pthread_mutex_lock(&asth->mutex);
+            signal(ent->net, ls, 1);
+            pthread_mutex_lock(&ent->asth->mutex);
         }
-        pthread_mutex_unlock(&asth->mutex);
+        pthread_mutex_unlock(&ent->asth->mutex);
     }
     
     return NULL;
 }
 
 // Criação CORRIGIDA
-AudioStreamThread* create_audio_stream(int label_true){
+AudioStreamThread* create_audio_stream(Network* net, int label_true){
     AudioStreamThread* asth = (AudioStreamThread*)calloc(1, sizeof(AudioStreamThread));
     if (!asth) {
         perror("Failed to allocate AudioStreamThread");
@@ -135,7 +123,11 @@ AudioStreamThread* create_audio_stream(int label_true){
     asth->input_buffer_current_size = 0;
     asth->label_true = label_true;
 
-    if (pthread_create(&asth->thread, NULL, audio_stream_thread, (void*)asth) != 0) {
+    StreamEntry* esth = malloc(sizeof(StreamEntry));
+    esth->asth = asth;
+    esth->net = net;
+
+    if (pthread_create(&asth->thread, NULL, audio_stream_thread, (void*)esth) != 0) {
         perror("Failed to create audio stream thread");
         pthread_mutex_destroy(&asth->mutex);
         pthread_cond_destroy(&asth->cond);
@@ -163,9 +155,9 @@ void stop_audio_stream(AudioStreamThread* asth){
 }
 
 // Inicialização CORRIGIDA
-void init_audio(ma_device* device, int label_true){
+void init_audio(Network* net, ma_device* device, int label_true){
     // Cria o stream ANTES de iniciar o dispositivo
-    asth = create_audio_stream(label_true);
+    asth = create_audio_stream(net, label_true);
     if (!asth) {
         fprintf(stderr, "Failed to create audio stream\n");
         return;

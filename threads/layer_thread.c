@@ -6,12 +6,11 @@
 #include <unistd.h>
 #include "./layer_thread.h"
 
-void signal(NetworkThreads* ntts, LayerSignal s, int lif_only){
-    for (int n = 0; n < ntts->n_layers; n++){
-        Layer* la = ntts->lts[n]->layer;
-        if (la->idx != s.from && la->conns[s.from] != NULL){
+void signal(Network* net, LayerSignal* s, int lif_only){
+    for (int n = 0; n < net->n_layers; n++){
+        Layer* la = net->layers[n];
+        if (la->idx != s->from && la->conns[s->from] != NULL){
             
-
         }
 
     }
@@ -25,7 +24,9 @@ void* thread(void* args){
             pthread_mutex_lock(&lt->mutex);
             LayerSignal* ls = lt->input_buffer[buffer];
             printf("INPUT BUFFER IN %d\n", lt->layer->idx);
+            lt->current_buffer_size--;
             pthread_mutex_unlock(&lt->mutex);
+
 
         }
     }
@@ -49,7 +50,6 @@ NetworkThreads* init_layer_threads(Network* net){
 
         net_ts->lts[i] = lt;
     }
-
     return net_ts;
 
 }

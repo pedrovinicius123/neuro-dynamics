@@ -226,7 +226,7 @@ int main(int argc, char** argv){
         printf("SAMPLE: %f\n", l->layers[8]->conns[1][1][1]);
         init_logger("logs/log.1.neur");
         NetworkThreads* net_ts = init_layer_threads(l);
-        init_audio(&device, label_true);
+        init_audio(l, &device, label_true);
 
 
         printf("Recording audio on machine...\n");
