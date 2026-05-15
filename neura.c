@@ -213,6 +213,7 @@ int main(int argc, char** argv){
             for (int layer = 0; layer < l->n_layers; layer++){
                 for (int i = 0; i < MAX_LAYERS; i++){
                     if (l->layers[layer]->conns[i] != NULL){
+                        printf("SAMPLE: %f\n", l->layers[layer]->conns[i][1][1]);
                         printf("LAYER %d to LAYER %d - OK\n", layer, i);
                     }
                 }            
@@ -222,16 +223,17 @@ int main(int argc, char** argv){
 
         ma_device device;
 
+        printf("SAMPLE: %f\n", l->layers[8]->conns[1][1][1]);
         init_logger("logs/log.1.neur");
-        init_layer_threads(l);
+        NetworkThreads* net_ts = init_layer_threads(l);
         init_audio(&device, label_true);
 
 
         printf("Recording audio on machine...\n");
-        sleep(10);
+        sleep(2);
         
         end_audio(&device);
-        end_layer_threads();         
+        end_layer_threads(net_ts);         
         printf("%d\n", l->n_layers);
         if (save_filename){
             write_neural_bins(save_filename, l);

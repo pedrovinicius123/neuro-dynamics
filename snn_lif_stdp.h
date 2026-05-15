@@ -139,10 +139,14 @@
             output.from = layer->idx;
 
             for (int i = 0; i < input.n_outputs; i++){
+                printf("BEFORE NEURON PROC %f\n", layer->neurons[i].current_u);
                 Neuron* n = &layer->neurons[i];
+                printf("AFTER N ALLOC\n");
                 float du = (-(n->current_u - U_REST) + RM*input.outputs[i]) * (DT/TAU_M);
+                printf("LIF\n");
                 n->current_u += du;
                 n->current_timestamp += DT;
+                printf("AFTER NEURON PROC\n");
 
                 for (int j = 0; j < nneurons_out; j++){
                     if(n->current_u >= U_TH){
@@ -162,6 +166,7 @@
                         
                         logger_log(EVENT_TYPE_SPIKE, d);
                     } 
+                    printf("NEURON %d PROC SUCCESSFUL\n", j);
                 }
             }
             return output;

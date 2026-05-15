@@ -5,6 +5,7 @@
 #include <pthread.h>
 
 typedef struct {
+    Layer* layer;
     pthread_mutex_t mutex;
     pthread_t thread;
     pthread_cond_t cond;
@@ -17,12 +18,11 @@ typedef struct {
 
 typedef struct {
     LayerThread** lts;
-    Network* net;
     int n_layers;
 } NetworkThreads;
 
 void signal(LayerSignal s);
-void init_layer_threads(Network* net);
-void end_layer_threads();
+NetworkThreads* init_layer_threads(Network* net);
+void end_layer_threads(NetworkThreads* netts);
 
 #endif
