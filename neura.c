@@ -7,6 +7,33 @@
 #include <string.h>
 #include <unistd.h>
 
+static void free_network_contents(Network* net){
+    if (net == NULL) return;
+    for (int i = 0; i < net->n_layers; i++){
+        Layer* layer = net->layers[i];
+        if (layer == NULL) continue;
+        for (int from = 0; from < MAX_LAYERS; from++){
+            if (layer->conns[from] == NULL) continue;
+            for (int row = 0; row < net->layers[from]->n_neurons; row++){
+                free(layer->conns[from][row]);
+            }
+            free(layer->conns[from]);
+        }
+        }
+        for (int i = 0; i < net->n_layers; i++){
+            Layer* layer = net->layers[i];
+            if (layer == NULL) continue;
+        free(layer->neurons);
+        free(layer->label);
+        free(layer);
+    }
+}
+
+static void free_network(Network* net){
+    free_network_contents(net);
+    free(net);
+}
+
 Network* read_neural_architecture(const char* filename){
     FILE* fptr = fopen(filename, "r");
     if (!fptr){
@@ -15,29 +42,49 @@ Network* read_neural_architecture(const char* filename){
     }
 
     char line[100];
-    int* n_neurons = malloc(sizeof(int));
-    char** labels = malloc(sizeof(char*));
+    int* n_neurons = malloc(MAX_LAYERS * sizeof(int));
+    char** labels = malloc(MAX_LAYERS * sizeof(char*));
     int nlayers = 0;
-    float conn_prob;
+    float conn_prob = 0.0f;
+    if (n_neurons == NULL || labels == NULL){
+        free(n_neurons);
+        free(labels);
+        fclose(fptr);
+        return NULL;
+    }
     
     while (fgets(line, sizeof(line), fptr)){
         char label[100];
         int nneuron;
-        if(line[0] == '#'){
-            sscanf(line, "# %f", &conn_prob);
-        } else {
-            sscanf(line, "(%[^)]) - %d", label,  &nneuron);
-            labels[nlayers-1] = strdup(label);
-            n_neurons[nlayers-1] = nneuron;
-            
-            labels = (char**)realloc(labels, (nlayers+1)*sizeof(char*));
-            n_neurons = (int*)realloc(n_neurons, (nlayers+1)*sizeof(int));
-            //sleep(1);
+        if (line[0] == '#') {
+            if (sscanf(line, "# %f", &conn_prob) != 1) goto invalid;
+        } else if (sscanf(line, "(%[^)]) - %d", label, &nneuron) == 2) {
+            if (nlayers >= MAX_LAYERS || nneuron <= 0) goto invalid;
+            char* parsed_label = snn_strdup(label);
+            if (parsed_label == NULL) goto invalid;
+            labels[nlayers] = parsed_label;
+            n_neurons[nlayers] = nneuron;
+            nlayers++;
+        } else if (line[0] != '\n' && line[0] != '\r' && line[0] != '\0') {
+            goto invalid;
         }
-        nlayers++;
-        
     }   
-    return generate_network(nlayers-1, n_neurons, labels, conn_prob);
+    fclose(fptr);
+    if (nlayers == 0) goto invalid_after_close;
+    Network* network = generate_network(nlayers, n_neurons, labels, conn_prob);
+    for (int i = 0; i < nlayers; i++) free(labels[i]);
+    free(labels);
+    free(n_neurons);
+    return network;
+
+invalid:
+    fclose(fptr);
+invalid_after_close:
+    for (int i = 0; i < nlayers; i++) free(labels[i]);
+    free(labels);
+    free(n_neurons);
+    fprintf(stderr, "Invalid neural architecture: %s\n", filename);
+    return NULL;
 }
 
 Network read_neural_bins(const char* filename){
@@ -100,15 +147,14 @@ Network read_neural_bins(const char* filename){
             // Aloca array de ponteiros para linhas
             net.layers[i]->conns[k] = (float**)malloc(nneurs * sizeof(float*));
             
-            // Aloca todos os dados contiguamente
-            float* data = (float*)malloc(nneurs * net.layers[i]->n_neurons * sizeof(float));
-            
-            // Lê tudo de uma vez
-            fread(data, sizeof(float), nneurs * net.layers[i]->n_neurons, fptr);
-            
-            // Configura os ponteiros para cada linha
             for (int row = 0; row < nneurs; row++) {
-                net.layers[i]->conns[k][row] = &data[row * net.layers[i]->n_neurons];
+                net.layers[i]->conns[k][row] = malloc(net.layers[i]->n_neurons * sizeof(float));
+                if (net.layers[i]->conns[k][row] == NULL ||
+                    fread(net.layers[i]->conns[k][row], sizeof(float), net.layers[i]->n_neurons, fptr) != (size_t)net.layers[i]->n_neurons) {
+                    fclose(fptr);
+                    free_network_contents(&net);
+                    return (Network){0};
+                }
             }
         }
     }
@@ -166,6 +212,7 @@ void write_neural_bins(const char* filename, Network* net){
     fclose(fptr);
 }
 
+#ifndef NEURA_NO_MAIN
 int main(int argc, char** argv){
     char* create_filename = NULL;
     char* save_filename = NULL;
@@ -173,7 +220,8 @@ int main(int argc, char** argv){
     int label_true = 0;
     int debug = 0;
 
-    for (int i = 0; i < argc; i++){
+    int record_audio = 0;
+    for (int i = 1; i < argc; i++){
         if(strcmp(argv[i], "--crfile") == 0 && i != argc-1){
             create_filename = argv[i+1];
         } else if (strcmp(argv[i], "--debug") == 0){
@@ -184,6 +232,8 @@ int main(int argc, char** argv){
             read_filename = argv[i+1];
         } else if(strcmp(argv[i], "--train") == 0 && i != argc-1){
             label_true = 1;
+        } else if (strcmp(argv[i], "--audio") == 0){
+            record_audio = 1;
         }
     }
 
@@ -194,7 +244,7 @@ int main(int argc, char** argv){
     }
 
     Network* l = NULL;
-    if ((create_filename == NULL) ^ (read_filename == NULL)){
+    if ((create_filename != NULL) ^ (read_filename != NULL)){
         if (create_filename){
             l = read_neural_architecture(create_filename);
             if (!l){
@@ -221,27 +271,28 @@ int main(int argc, char** argv){
             sleep(2);
         }
 
-        ma_device device;
-
-        printf("SAMPLE: %f\n", l->layers[8]->conns[1][1][1]);
-        init_logger("logs/log.1.neur");
-        NetworkThreads* net_ts = init_layer_threads(l);
-        init_audio(l, &device, label_true);
-
-
-        printf("Recording audio on machine...\n");
-        sleep(2);
-        
-        end_audio(&device);
-        end_layer_threads(net_ts);         
-        printf("%d\n", l->n_layers);
+        if (record_audio) {
+            ma_device device;
+            init_logger("logs/log.1.neur");
+            NetworkThreads* net_ts = init_layer_threads(l);
+            init_audio(l, &device, label_true);
+            printf("Recording audio on machine...\n");
+            sleep(2);
+            end_audio(&device);
+            end_layer_threads(net_ts);
+            logger_end();
+        } else {
+            printf("Model loaded: %d layers\n", l->n_layers);
+        }
         if (save_filename){
             write_neural_bins(save_filename, l);
         }
+        free_network(l);
     } else {
         printf("Error, --rfile xor --sfile => 0\n");
         return 1;
     }
     return 0;
 }
+#endif
 

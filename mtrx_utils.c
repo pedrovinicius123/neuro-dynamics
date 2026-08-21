@@ -5,15 +5,13 @@
 float** transpose(float** mtrx, int rows, int cols){
     //printf("AAA\n");
 
-    float** transposed = (float**)malloc(rows*sizeof(float*));
-    for (int k = 0; k < rows; k++){
-        transposed[k] = (float*) malloc(cols*sizeof(float));
+    float** transposed = (float**)malloc((size_t)cols * sizeof(float*));
+    for (int k = 0; k < cols; k++){
+        transposed[k] = (float*) malloc((size_t)rows * sizeof(float));
     }
     // Transpõe
-    for (int i = 0; i < rows; i++){
-        for (int j = 0; j < cols; j++){
-            //printf("BEFORE CURSE %d %d (%d %d)\n", i, j, rows, cols);
-            //printf("%f\n", mtrx[10][0]);
+    for (int i = 0; i < cols; i++){
+        for (int j = 0; j < rows; j++){
             transposed[i][j] = mtrx[j][i];
         }
     }

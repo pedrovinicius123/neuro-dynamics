@@ -19,10 +19,12 @@ audio_frame_t temp_buffer[1024];
 int temp_frames = 0;
 
 void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount){
+    (void)pOutput;
     if (pInput == NULL) return;
     
     const float* pInputFloat = (const float*) pInput;
     int channels = pDevice->capture.channels;
+    if (frameCount > 1024) frameCount = 1024;
     
     // COPIA RÁPIDA para buffer local (sem lock)
     for(ma_uint32 frame = 0; frame < frameCount; frame++) {
@@ -163,15 +165,7 @@ void init_audio(Network* net, ma_device* device, int label_true){
         return;
     }
     
-    ma_backend backends[] = { ma_backend_winmm };
     ma_device_config config = ma_device_config_init(ma_device_type_capture);
-
-    ma_context context;
-    ma_result result = ma_context_init(backends, 1, NULL, &context);
-    if (result != MA_SUCCESS) {
-        printf("Falha ao inicializar contexto com WinMM\n");
-        return;
-    }
     config.capture.pDeviceID = NULL;
     config.capture.format = ma_format_f32;
     config.capture.channels = 0;
