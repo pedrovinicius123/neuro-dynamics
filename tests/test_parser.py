@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from parser import Event, read_log_file
+from parser import Event, read_log_file, export_to_json
 
 
 class ParserTests(unittest.TestCase):
@@ -33,6 +33,17 @@ class ParserTests(unittest.TestCase):
             entries = read_log_file(log_file.name)
 
         self.assertEqual(len(entries), 1)
+
+    def test_exports_json_for_external_benchmarks(self):
+        payload = struct.pack("<iiiff", 0, 4, 2, -50.0, 1.5)
+        with tempfile.NamedTemporaryFile() as log_file, tempfile.NamedTemporaryFile() as output:
+            log_file.write(payload)
+            log_file.flush()
+            export_to_json(read_log_file(log_file.name), output.name)
+            output.seek(0)
+            content = output.read().decode("utf-8")
+
+        self.assertIn('"event_type": "EVENT_TYPE_SPIKE"', content)
 
 
 if __name__ == "__main__":

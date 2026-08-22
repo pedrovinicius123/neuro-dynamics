@@ -119,35 +119,24 @@
             output.spike_timestamps = calloc(nneurons_out, sizeof(float));
             output.from = layer->idx;
 
-            for (int i = 0; i < input.n_outputs; i++){
-                printf("BEFORE NEURON PROC %f\n", layer->neurons[i].current_u);
-                Neuron* n = &layer->neurons[i];
-                printf("AFTER N ALLOC\n");
-                float du = (-(n->current_u - U_REST) + RM*input.outputs[i]) * (DT/TAU_M);
-                printf("LIF\n");
+            for (int j = 0; j < nneurons_out; j++){
+                Neuron* n = &layer->neurons[j];
+                float current = 0.0f;
+                for (int i = 0; i < input.n_outputs; i++){
+                    current += input.outputs[i] * w[input.from][i][j];
+                }
+                float du = (-(n->current_u - U_REST) + RM*current) * (DT/TAU_M);
                 n->current_u += du;
                 n->current_timestamp += DT;
-                printf("AFTER NEURON PROC\n");
 
-                for (int j = 0; j < nneurons_out; j++){
-                    if(n->current_u >= U_TH){
-                        printf("SPIKE!!\n");
-                        output.outputs[i] += lif_only > 0 ? 70.0f : 70.0f * w[input.from][i][j];
-                        output.spike_timestamps[i] = n->current_timestamp;
+                if(n->current_u >= U_TH){
+                    output.outputs[j] = lif_only > 0 ? 70.0f : 70.0f;
+                    output.spike_timestamps[j] = n->current_timestamp;
 
-                        Data d = {
-                            n->idx,
-                            layer->idx,
-                            n->current_u,
-                            n->last_spike_timestamp
-                        };
-
-                        n->current_u = U_REST;
-                        n->last_spike_timestamp = n->current_timestamp;
-                        
-                        logger_log(EVENT_TYPE_SPIKE, d);
-                    } 
-                    printf("NEURON %d PROC SUCCESSFUL\n", j);
+                    Data d = {n->idx, layer->idx, n->current_u, n->current_timestamp};
+                    n->current_u = U_REST;
+                    n->last_spike_timestamp = n->current_timestamp;
+                    logger_log(EVENT_TYPE_SPIKE, d);
                 }
             }
             return output;
@@ -155,8 +144,10 @@
         void STDP(LayerSignal ls, Layer* layer){
             int from = ls.from;
             for (int i = 0; i < ls.n_outputs; i++){
+                if (ls.outputs == NULL || ls.outputs[i] <= 0.0f) continue;
                 float spike_tms = ls.spike_timestamps[i];
                 for (int j = 0; j < layer->n_neurons; j++){
+                    if (layer->neurons[j].last_spike_timestamp <= 0.0f) continue;
                     float dt = layer->neurons[j].last_spike_timestamp - spike_tms;
                     float dw = 0.0f;
                     if (dt > 0){
@@ -170,7 +161,7 @@
                     (*w) = *w > 3.0f ? 3.0f :*w;
                     (*w) = *w < -3.0f ?- 3.0f : *w;
 
-                    Data data = {layer->idx, 0, 0.0f, layer->neurons[0].current_timestamp};
+                    Data data = {i, layer->idx, *w, layer->neurons[j].current_timestamp};
                     logger_log(EVENT_TYPE_WEIGTH_UPDATE, data);
 
                 }

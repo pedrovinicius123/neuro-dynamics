@@ -1,5 +1,6 @@
 import struct
 import sys
+import json
 from enum import IntEnum
 from dataclasses import dataclass
 from typing import List
@@ -39,6 +40,15 @@ class LogEntry:
         data_obj = Data.from_bytes(data_bytes)
         
         return LogEntry(event_type, data_obj)
+
+    def to_dict(self) -> dict:
+        return {
+            "event_type": self.event_type.name,
+            "neuron_idx": self.data.neuron_idx,
+            "layer_idx": self.data.layer_idx,
+            "neuron_u": self.data.neuron_u,
+            "timestamp": self.data.timestamp,
+        }
 
 def read_log_file(filename: str) -> List[LogEntry]:
     """Lê todas as entradas do arquivo binário"""
@@ -144,6 +154,12 @@ def export_to_csv(entries: List[LogEntry], filename: str):
     
     print(f"\nDados exportados para {filename}")
 
+def export_to_json(entries: List[LogEntry], filename: str):
+    """Exporta eventos em um formato legível por ferramentas externas."""
+    with open(filename, 'w', encoding='utf-8') as jsonfile:
+        json.dump([entry.to_dict() for entry in entries], jsonfile, indent=2)
+    print(f"\nDados exportados para {filename}")
+
 def main():
     import argparse
     
@@ -152,6 +168,7 @@ def main():
     parser.add_argument('-v', '--verbose', action='store_true', help='Mostra todas as entradas')
     parser.add_argument('-a', '--analyze', action='store_true', help='Mostra análise estatística')
     parser.add_argument('-c', '--csv', help='Exporta para CSV (forneça o nome do arquivo)')
+    parser.add_argument('-j', '--json', help='Exporta eventos para JSON')
     parser.add_argument('-n', '--num-entries', type=int, help='Número de entradas para mostrar')
     
     args = parser.parse_args()
@@ -177,6 +194,8 @@ def main():
     # Exporta para CSV
     if args.csv:
         export_to_csv(entries, args.csv)
+    if args.json:
+        export_to_json(entries, args.json)
 
 if __name__ == "__main__":
     # Exemplo de uso direto (sem argumentos de linha de comando)

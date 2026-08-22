@@ -91,7 +91,7 @@ void* audio_stream_thread(void* args){
             printf("%f %f\n", ls->outputs[0], ls->outputs[1]);
             
             ls->n_outputs = 3;
-            ls->from = MAX_LAYERS;
+            ls->from = 0;
             
             // Avança read_pos
             ent->asth->read_pos = (ent->asth->read_pos + 1) % AUDIO_BUFFER_MAX_SIZE;

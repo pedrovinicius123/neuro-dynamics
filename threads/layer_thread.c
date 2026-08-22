@@ -6,16 +6,40 @@
 #include <unistd.h>
 #include "./layer_thread.h"
 
-void signal(Network* net, LayerSignal* s, int lif_only){
-    (void)lif_only;
-    for (int n = 0; n < net->n_layers; n++){
-        Layer* la = net->layers[n];
-        if (la->idx != s->from && la->conns[s->from] != NULL){
-            
-        }
+static void propagate_signal(Network* net, LayerSignal* input, int lif_only,
+                             int* visited){
+    if (net == NULL || input == NULL || input->outputs == NULL) return;
+    if (input->from < 0 || input->from >= net->n_layers) return;
 
+    int source = input->from;
+    if (input->n_outputs > net->layers[source]->n_neurons) {
+        input->n_outputs = net->layers[source]->n_neurons;
     }
+    visited[source] = 1;
+    for (int n = 0; n < net->n_layers; n++){
+        Layer* target = net->layers[n];
+        if (target == NULL || target->idx == source || visited[target->idx]) continue;
+        if (target->conns[source] == NULL) continue;
 
+        LayerSignal output = LIF_Signal(*input, lif_only, target,
+                                         target->n_neurons, target->conns);
+        STDP(*input, target);
+        visited[target->idx] = 1;
+        propagate_signal(net, &output, lif_only, visited);
+        free(output.outputs);
+        free(output.spike_timestamps);
+    }
+}
+
+void signal(Network* net, LayerSignal* s, int lif_only){
+    if (net == NULL || s == NULL || net->n_layers <= 0) return;
+
+    /* External sources (audio, tokenizers) enter through the input layer. */
+    LayerSignal input = *s;
+    if (input.from < 0 || input.from >= net->n_layers) input.from = 0;
+
+    int visited[MAX_LAYERS] = {0};
+    propagate_signal(net, &input, lif_only, visited);
 }
 
 void* thread(void* args){

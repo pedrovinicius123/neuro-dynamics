@@ -4,9 +4,10 @@
 #include "logger.h"
 
 static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
-FILE* file_ptr;
+static FILE* file_ptr;
 
 void init_logger(const char* filename){
+    if (file_ptr != NULL) logger_end();
     file_ptr = fopen(filename, "ab"); 
     if (!file_ptr){
         perror("Log finished");
@@ -17,18 +18,28 @@ void init_logger(const char* filename){
 
 void logger_log(Event event_type, Data data){
     pthread_mutex_lock(&log_mutex);
-    
-    LogEntry log;
-    log.event_type = event_type;
-    log.data = data;
-    fwrite(&log, sizeof(LogEntry), 1, file_ptr);
-    fflush(file_ptr);
+    if (file_ptr == NULL) {
+        pthread_mutex_unlock(&log_mutex);
+        return;
+    }
+
+    /* Keep the on-disk format independent of C struct padding. */
+    int event_value = (int)event_type;
+    int written = 0;
+    written += fwrite(&event_value, sizeof(event_value), 1, file_ptr) == 1;
+    written += fwrite(&data.neuron_idx, sizeof(data.neuron_idx), 1, file_ptr) == 1;
+    written += fwrite(&data.layer_idx, sizeof(data.layer_idx), 1, file_ptr) == 1;
+    written += fwrite(&data.neuron_u, sizeof(data.neuron_u), 1, file_ptr) == 1;
+    written += fwrite(&data.timestamp, sizeof(data.timestamp), 1, file_ptr) == 1;
+    if (written == 5) fflush(file_ptr);
     
     pthread_mutex_unlock(&log_mutex);
-    printf("Logging successful\n");
 }
 
 void logger_end(){
+    if (file_ptr == NULL) return;
+    pthread_mutex_lock(&log_mutex);
     fclose(file_ptr);
-    printf("Logger closed\n");
+    file_ptr = NULL;
+    pthread_mutex_unlock(&log_mutex);
 }
