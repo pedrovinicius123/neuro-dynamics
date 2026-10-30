@@ -1,5 +1,8 @@
 #ifndef LOGGER
 #define LOGGER
+#include <stddef.h>
+
+#define LOGGER_MAX_LAYERS 10
 
 typedef enum {
     EVENT_TYPE_SPIKE,
@@ -23,5 +26,8 @@ typedef struct {
 void init_logger(const char* filename);
 void logger_log(Event event_type, Data data);
 void logger_end();
+void logger_reset_counts(void);
+void logger_get_counts(unsigned long* spikes, unsigned long* weight_updates,
+                       unsigned long* spikes_by_layer, size_t layer_count);
 
 #endif

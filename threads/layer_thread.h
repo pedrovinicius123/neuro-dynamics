@@ -23,6 +23,7 @@ typedef struct {
 
 
 void signal(Network* net, LayerSignal* s, int lif_only);
+void signal_inference(Network* net, LayerSignal* s, int lif_only);
 NetworkThreads* init_layer_threads(Network* net);
 void end_layer_threads(NetworkThreads* ntts);
 

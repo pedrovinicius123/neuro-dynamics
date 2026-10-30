@@ -25,6 +25,10 @@ static void test_architecture_round_trip(void){
     assert(generated->layers[0]->label != NULL);
     assert(generated->layers[0]->conns[1] != NULL);
 
+    NetworkThreads* threads = init_layer_threads(generated);
+    assert(threads != NULL);
+    end_layer_threads(threads);
+
     const char* filename = "/tmp/neuro-dynamics-test.model";
     write_neural_bins(filename, generated);
     free_network(generated);
@@ -38,9 +42,23 @@ static void test_architecture_round_trip(void){
     remove(filename);
 }
 
+static void test_rejects_invalid_model(void){
+    const char* filename = "/tmp/neuro-dynamics-invalid.model";
+    FILE* file = fopen(filename, "wb");
+    assert(file != NULL);
+    int invalid_layer_count = MAX_LAYERS + 1;
+    assert(fwrite(&invalid_layer_count, sizeof(int), 1, file) == 1);
+    fclose(file);
+
+    Network loaded = read_neural_bins(filename);
+    assert(loaded.n_layers == 0);
+    remove(filename);
+}
+
 int main(void){
     test_transpose();
     test_architecture_round_trip();
+    test_rejects_invalid_model();
     puts("C tests passed");
     return 0;
 }

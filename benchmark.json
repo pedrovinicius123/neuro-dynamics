@@ -1,0 +1,177 @@
+{
+  "format": "neuro-dynamics-benchmark-v1",
+  "training_backend": "neura-c",
+  "tokenization": {
+    "name": "unicode-ngram-spike-encoder",
+    "lowercase": true
+  },
+  "architecture": {
+    "labels": [
+      "LAYER_OUTPUT",
+      "LAYER_1",
+      "LAYER_2",
+      "LAYER_3",
+      "LAYER_4",
+      "LAYER_5",
+      "LAYER_6",
+      "LAYER_7",
+      "INPUT"
+    ],
+    "sizes": [
+      1,
+      10,
+      50,
+      100,
+      50,
+      100,
+      200,
+      200,
+      3
+    ],
+    "connection_probability": 0.0
+  },
+  "metrics": {
+    "token_count": 20000,
+    "vocabulary_size": 3022,
+    "total_spikes": 40624,
+    "firing_rate": 0.002844817927170868,
+    "weight_updates": 0
+  },
+  "predictions": [
+    {
+      "input_token": "tnf",
+      "next_token_candidates": [
+        ",",
+        "(",
+        "+",
+        "and",
+        "was"
+      ]
+    },
+    {
+      "input_token": ",",
+      "next_token_candidates": [
+        "and",
+        "the",
+        "but",
+        "which",
+        "as"
+      ]
+    },
+    {
+      "input_token": "ifn",
+      "next_token_candidates": [
+        "-"
+      ]
+    },
+    {
+      "input_token": "-",
+      "next_token_candidates": [
+        "1",
+        "6",
+        "2",
+        "8",
+        "cell"
+      ]
+    },
+    {
+      "input_token": ",",
+      "next_token_candidates": [
+        "and",
+        "the",
+        "but",
+        "which",
+        "as"
+      ]
+    },
+    {
+      "input_token": "il",
+      "next_token_candidates": [
+        "-"
+      ]
+    },
+    {
+      "input_token": "-",
+      "next_token_candidates": [
+        "1",
+        "6",
+        "2",
+        "8",
+        "cell"
+      ]
+    },
+    {
+      "input_token": "4",
+      "next_token_candidates": [
+        ",",
+        ".",
+        ")",
+        "]",
+        "("
+      ]
+    },
+    {
+      "input_token": ",",
+      "next_token_candidates": [
+        "and",
+        "the",
+        "but",
+        "which",
+        "as"
+      ]
+    },
+    {
+      "input_token": "gm",
+      "next_token_candidates": [
+        "-"
+      ]
+    }
+  ],
+  "layer_activity": [
+    {
+      "layer": "LAYER_OUTPUT",
+      "width": 1,
+      "spikes": 0
+    },
+    {
+      "layer": "LAYER_1",
+      "width": 10,
+      "spikes": 0
+    },
+    {
+      "layer": "LAYER_2",
+      "width": 50,
+      "spikes": 0
+    },
+    {
+      "layer": "LAYER_3",
+      "width": 100,
+      "spikes": 0
+    },
+    {
+      "layer": "LAYER_4",
+      "width": 50,
+      "spikes": 0
+    },
+    {
+      "layer": "LAYER_5",
+      "width": 100,
+      "spikes": 0
+    },
+    {
+      "layer": "LAYER_6",
+      "width": 200,
+      "spikes": 0
+    },
+    {
+      "layer": "LAYER_7",
+      "width": 200,
+      "spikes": 0
+    },
+    {
+      "layer": "INPUT",
+      "width": 3,
+      "spikes": 40624
+    }
+  ]
+}
