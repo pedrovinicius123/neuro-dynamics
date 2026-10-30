@@ -1,6 +1,6 @@
 CC ?= gcc
 CFLAGS ?= -std=c11 -Wall -Wextra -Wpedantic
-SOURCES = neura.c mtrx_utils.c threads/layer_thread.c logging/logger.c audio/astream.c
+SOURCES = neura.c mtrx_utils.c logging/logger.c
 
 compile:
 	$(CC) $(CFLAGS) $(SOURCES) -o neura -lpthread -lm

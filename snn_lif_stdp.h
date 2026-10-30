@@ -31,7 +31,7 @@
         int from;
     } LayerSignal;
 
-    typedef struct Neuron {
+    typedef struct {
         float current_timestamp;
         float current_u;
         float ref_count;
@@ -42,10 +42,12 @@
     typedef struct {
         char* label;
         Neuron* neurons;
-        float** conns[MAX_LAYERS];
+
+        float** conns[MAX_LAYERS];    
         int n_conns;
         int n_neurons;
         int idx;
+    
     } Layer;
 
     typedef struct {
@@ -54,7 +56,7 @@
     } Network;
 
     #if defined(SNN_LIF_GENERATION)
-        static char* snn_strdup(const char* source){
+        char* snn_strdup(const char* source){
             if (source == NULL) return NULL;
             size_t length = strlen(source) + 1;
             char* copy = malloc(length);
@@ -62,7 +64,7 @@
             return copy;
         }
 
-        static void snn_free_generated_network(Network* net){
+        void snn_free_generated_network(Network* net){
             if (net == NULL) return;
             for (int i = 0; i < net->n_layers; i++){
                 Layer* layer = net->layers[i];
@@ -140,7 +142,7 @@
                 }
             }
 
-            printf("Finished\n");
+            log_info("Finished\n");
             return net;
         }
 
@@ -157,8 +159,9 @@
             output.outputs = calloc(nneurons_out, sizeof(float));
             output.spike_timestamps = calloc(nneurons_out, sizeof(float));
             if (output.outputs == NULL || output.spike_timestamps == NULL){
-                free(output.outputs);
-                free(output.spike_timestamps);
+                log_error("Failed to allocate memory for LayerSignal outputs or spike_timestamps.");
+                if (output.outputs) free(output.outputs);
+                if (output.spike_timestamps) free(output.spike_timestamps);
                 return (LayerSignal){0};
             }
             output.from = layer->idx;
@@ -180,13 +183,14 @@
                     Data d = {n->idx, layer->idx, n->current_u, n->current_timestamp};
                     n->current_u = U_REST;
                     n->last_spike_timestamp = n->current_timestamp;
-                    logger_log(EVENT_TYPE_SPIKE, d);
+                    log_event(EVENT_TYPE_SPIKE, d);
                 }
             }
             return output;
         }
         void STDP(LayerSignal ls, Layer* layer){
             int from = ls.from;
+            log_info("STDP function called on layer %d", from);
             if (layer == NULL || ls.outputs == NULL || ls.spike_timestamps == NULL
                 || from < 0 || from >= MAX_LAYERS || layer->conns[from] == NULL) return;
             for (int i = 0; i < ls.n_outputs; i++){
@@ -209,7 +213,7 @@
                     *w = updated_weight;
 
                     Data data = {i, layer->idx, updated_weight, layer->neurons[j].current_timestamp};
-                    logger_log(EVENT_TYPE_WEIGTH_UPDATE, data);
+                    log_event(EVENT_TYPE_WEIGTH_UPDATE, data);
 
                 }
 
